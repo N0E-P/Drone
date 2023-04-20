@@ -49,6 +49,9 @@ float tension = 0;
 void setup() {
   Serial.begin(9600);
 
+  // Buzzer
+  pinMode(7, OUTPUT);
+
   //radio
   radio.begin();
   radio.openWritingPipe(addresses[0]);     // 00001
@@ -91,12 +94,17 @@ void loop() {
   // Bip if we lost signal for more than a second
   if (millis() - lastReceiveTime > 1000) {
     Serial.print("  X  ");
-    /////////////////////        TODOOOO            ///////////////////////
+    tone(7, 700);
+    delay(400);
+    noTone(7);
+    delay(600);
 
     // Looks good in the terminal
-  } else{
+  } else {
     Serial.print("     ");
   }
+
+
 
 
   // Stop the motors
