@@ -5,8 +5,8 @@
 #include <Servo.h>
 
 //radio
-RF24 radio(8, 9); // CE, CSN
-const byte address[6] = "00001";
+RF24 radio(8, 9);  // CE, CSN
+const byte addresses[][6] = { "00001", "00002" };
 
 //Struct used to store all the data we want to send
 struct Data_Package {
@@ -41,6 +41,9 @@ const int calibration = 50;
 // Power to remove from drone if it lost signal
 int decreasePower = 1;
 
+// vehicule tension value
+float tension = 0;
+
 
 ///////////////////////////////////
 void setup() {
@@ -48,10 +51,10 @@ void setup() {
 
   //radio
   radio.begin();
-  radio.openReadingPipe(0, address);
+  radio.openWritingPipe(addresses[0]);     // 00001
+  radio.openReadingPipe(1, addresses[1]);  // 00002
   radio.setAutoAck(false);
   radio.setPALevel(RF24_PA_MIN);
-  radio.startListening();
 
   //Give each motor an outpout pin
   motor1.attach(5);
@@ -66,21 +69,33 @@ void setup() {
 ///////////////////////////////////
 void loop() {
   // Mesure and send battery tension
-  float tension = analogRead(A5) * 0.0244140625;
+  tension = analogRead(A5) * 0.0244140625;
   Serial.print(tension);
   Serial.print("V");
 
 
-  //Read and store the struct send by the radio
+  // Send the drone tension to the controler
+  radio.stopListening();
+  radio.write(&tension, sizeof(tension));
+  delay(5);
+
+
+  //Read the struct send by the radio
+  radio.startListening();
   if (radio.available()) {
-    radio.read(&data, sizeof(Data_Package));
     lastReceiveTime = millis();
+    radio.read(&data, sizeof(Data_Package));
   }
 
 
   // Bip if we lost signal for more than a second
   if (millis() - lastReceiveTime > 1000) {
-    Serial.print(" X");
+    Serial.print("  X  ");
+    /////////////////////        TODOOOO            ///////////////////////
+
+    // Looks good in the terminal
+  } else{
+    Serial.print("     ");
   }
 
 
@@ -90,7 +105,7 @@ void loop() {
     motor2.writeMicroseconds(1100);
     motor3.writeMicroseconds(1100);
     motor4.writeMicroseconds(1100);
-    Serial.println("   Motors Stopped.");
+    Serial.println("Motors Stopped.");
 
 
     // Motors are rotating
@@ -198,7 +213,7 @@ void loop() {
     motor4.writeMicroseconds(map(motor4Value, 0, 255, 1100, 2100));
 
     //Write data on the Serial Monitor
-    Serial.print("     Throttle: ");
+    Serial.print("Throttle: ");
     Serial.print(data.throttle);
     Serial.print("   Yaw: ");
     Serial.print(data.yaw);
