@@ -5,7 +5,7 @@
 #include <Servo.h>
 
 //radio
-RF24 radio(8, 9);  // CE, CSN
+RF24 radio(8, 9); // CE, CSN
 const byte address[6] = "00001";
 
 //Struct used to store all the data we want to send
@@ -39,7 +39,7 @@ int motor4Value = 0;
 const int calibration = 50;
 
 // Power to remove from drone if it lost signal
-int power = 1;
+int decreasePower = 1;
 
 
 ///////////////////////////////////
@@ -80,7 +80,7 @@ void loop() {
 
   // Bip if we lost signal for more than a second
   if (millis() - lastReceiveTime > 1000) {
-    Serial.println("   X");
+    Serial.print(" X");
   }
 
 
@@ -97,18 +97,20 @@ void loop() {
   } else {
     // If radio signal lost
     if (millis() - lastReceiveTime > 1000) {
-      motor1Value = data.throttle - power;
-      motor2Value = data.throttle - power;
-      motor3Value = data.throttle - power;
-      motor4Value = data.throttle - power;
+      motor1Value = data.throttle - decreasePower;
+      motor2Value = data.throttle - decreasePower;
+      motor3Value = data.throttle - decreasePower;
+      motor4Value = data.throttle - decreasePower;
 
       // Increase the power to slowly decrease the drone altitude
-      power = power + 1;
+      decreasePower = decreasePower + 1;
 
 
       // If we get radio signal
     } else {
-      power = 1;
+      // Reset the decrease power to only 1 if the drone lost and then regain signal
+      decreasePower = 1;
+
       //Pitch front + Throttle
       if (data.pitch > 127) {
         data.pitch = map(data.pitch, 128, 255, 0, calibration);
@@ -196,7 +198,7 @@ void loop() {
     motor4.writeMicroseconds(map(motor4Value, 0, 255, 1100, 2100));
 
     //Write data on the Serial Monitor
-    Serial.print("   Throttle: ");
+    Serial.print("     Throttle: ");
     Serial.print(data.throttle);
     Serial.print("   Yaw: ");
     Serial.print(data.yaw);
@@ -204,7 +206,7 @@ void loop() {
     Serial.print(data.pitch);
     Serial.print("   Roll: ");
     Serial.print(data.roll);
-    Serial.print("   Motor1: ");
+    Serial.print("     Motor1: ");
     Serial.print(motor1Value);
     Serial.print("   Motor2: ");
     Serial.print(motor2Value);
