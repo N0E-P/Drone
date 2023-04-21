@@ -20,15 +20,19 @@ struct Data_Package {
 Data_Package data;
 
 // vehicule tension value
-float tension = 0;
+float tension = 0.00;
 
 //Time units
-unsigned long lastReceiveTime = 0;
+unsigned long lastSignalBipTime = 0;
+unsigned long lastTensionBipTime = 0;
 
 
 ///////////////////////////////////
 void setup() {
   Serial.begin(9600);
+
+  // Buzzer
+  pinMode(3, OUTPUT);
 
   //radio communication
   radio.begin();
@@ -60,6 +64,7 @@ void loop() {
     data.roll = 127;
     Serial.println("Motors Stopped.");
 
+
     //Read analog entries, convert them between 0 & 255, then store it in the data struct
   } else {
     data.throttle = map(analogRead(A2), 0, 1023, 255, 0);
@@ -79,6 +84,11 @@ void loop() {
   }
 
 
+  //Print tension data
+  Serial.print(tension);
+  Serial.print("V");
+
+
   //Send the data
   radio.stopListening();
   radio.write(&data, sizeof(Data_Package));
@@ -88,26 +98,41 @@ void loop() {
   // Receive data
   radio.startListening();
   if (radio.available()) {
-    lastReceiveTime = millis();
     radio.read(&tension, sizeof(tension));
-  }
-  Serial.print(tension);
-  Serial.print("V");
+    lastSignalBipTime = millis();
+    if (tension > 6.6) {
+      Serial.print("     ");
 
-  // Bip if we lost signal for more than a second
-  if (millis() - lastReceiveTime > 1000) {
+
+      // Bip every 5s if the battery is low
+    } else {
+      Serial.print("  B  ");
+      if (millis() - lastTensionBipTime > 5000) {
+        tone(3, 800);
+        delay(75);
+        tone(3, 600);
+        delay(75);
+        noTone(3);
+        lastTensionBipTime = millis();
+      }
+    }
+
+
+    // Bip every 2 seconds if we lost signal
+  } else {
     Serial.print("  X  ");
-    /////////////////////        TODOOOO            ///////////////////////
-
-    // Looks good in the terminal
-  } else{
-    Serial.print("     ");
+    if (millis() - lastSignalBipTime > 2000) {
+      tone(3, 2000);
+      delay(75);
+      tone(3, 3000);
+      delay(75);
+      tone(3, 4000);
+      delay(75);
+      noTone(3);
+      lastSignalBipTime = millis();
+    }
   }
 
-  // Bip if battery is low
-  if (tension < 6.6) {
-    /////////////////////        TODOOOO            ///////////////////////
-  }
 
   delay(50);
 }

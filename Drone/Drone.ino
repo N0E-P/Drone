@@ -28,6 +28,7 @@ Servo motor4;
 
 //Time units
 unsigned long lastReceiveTime = 0;
+unsigned long lastBipTime = 0;
 
 //Declare the motor values variables
 int motor1Value = 0;
@@ -65,14 +66,14 @@ void setup() {
   motor3.attach(3);
   motor4.attach(2);
 
-  delay(5000);
+  delay(3000);
 }
 
 
 ///////////////////////////////////
 void loop() {
   // Mesure and send battery tension
-  tension = analogRead(A5) * 0.0244140625;
+  tension = analogRead(A5) * 0.0244140625 + 0.5;
   Serial.print(tension);
   Serial.print("V");
 
@@ -86,23 +87,26 @@ void loop() {
   //Read the struct send by the radio
   radio.startListening();
   if (radio.available()) {
-    lastReceiveTime = millis();
     radio.read(&data, sizeof(Data_Package));
-  }
-
-
-  // Bip if we lost signal for more than a second
-  if (millis() - lastReceiveTime > 1000) {
-    Serial.print("  X  ");
-    tone(7, 700);
-    delay(400);
-    noTone(7);
-    delay(600);
-
-    // Looks good in the terminal
-  } else {
+    lastReceiveTime = millis();
+    lastBipTime = millis();
     Serial.print("     ");
+
+    // Bip every 5 seconds if we lost signal
+  } else {
+    Serial.print("  X  ");
+    if (millis() - lastBipTime > 5000) {
+      tone(7, 2000);
+      delay(75);
+      tone(7, 3000);
+      delay(75);
+      tone(7, 4000);
+      delay(75);
+      noTone(7);
+      lastBipTime = millis();
+    }
   }
+
 
 
 
@@ -136,53 +140,53 @@ void loop() {
 
       //Pitch front + Throttle
       if (data.pitch > 127) {
-        data.pitch = map(data.pitch, 128, 255, 0, calibration);
-        motor1Value = data.throttle - data.pitch;
-        motor2Value = data.throttle - data.pitch;
-        motor3Value = data.throttle + data.pitch;
-        motor4Value = data.throttle + data.pitch;
+        int pitch = map(data.pitch, 128, 255, 0, calibration);
+        motor1Value = data.throttle - pitch;
+        motor2Value = data.throttle - pitch;
+        motor3Value = data.throttle + pitch;
+        motor4Value = data.throttle + pitch;
 
         //Pitch back + Throttle
       } else {
-        data.pitch = map(data.pitch, 127, 0, 0, calibration);
-        motor1Value = data.throttle + data.pitch;
-        motor2Value = data.throttle + data.pitch;
-        motor3Value = data.throttle - data.pitch;
-        motor4Value = data.throttle - data.pitch;
+        int pitch = map(data.pitch, 127, 0, 0, calibration);
+        motor1Value = data.throttle + pitch;
+        motor2Value = data.throttle + pitch;
+        motor3Value = data.throttle - pitch;
+        motor4Value = data.throttle - pitch;
       }
 
       //Roll right
       if (data.roll > 127) {
-        data.roll = map(data.roll, 128, 255, 0, calibration);
-        motor1Value = motor1Value - data.roll;
-        motor2Value = motor2Value + data.roll;
-        motor3Value = motor3Value + data.roll;
-        motor4Value = motor4Value - data.roll;
+        int roll = map(data.roll, 128, 255, 0, calibration);
+        motor1Value = motor1Value - roll;
+        motor2Value = motor2Value + roll;
+        motor3Value = motor3Value + roll;
+        motor4Value = motor4Value - roll;
 
         //Roll left
       } else {
-        data.roll = map(data.roll, 127, 0, 0, calibration);
-        motor1Value = motor1Value + data.roll;
-        motor2Value = motor2Value - data.roll;
-        motor3Value = motor3Value - data.roll;
-        motor4Value = motor4Value + data.roll;
+        int roll = map(data.roll, 127, 0, 0, calibration);
+        motor1Value = motor1Value + roll;
+        motor2Value = motor2Value - roll;
+        motor3Value = motor3Value - roll;
+        motor4Value = motor4Value + roll;
       }
 
       //Yaw right
       if (data.yaw > 127) {
-        data.yaw = map(data.yaw, 128, 255, 0, calibration);
-        motor1Value = motor1Value - data.yaw;
-        motor2Value = motor2Value + data.yaw;
-        motor3Value = motor3Value - data.yaw;
-        motor4Value = motor4Value + data.yaw;
+        int yaw = map(data.yaw, 128, 255, 0, calibration);
+        motor1Value = motor1Value - yaw;
+        motor2Value = motor2Value + yaw;
+        motor3Value = motor3Value - yaw;
+        motor4Value = motor4Value + yaw;
 
         //Yaw left
       } else {
-        data.yaw = map(data.yaw, 127, 0, 0, calibration);
-        motor1Value = motor1Value + data.yaw;
-        motor2Value = motor2Value - data.yaw;
-        motor3Value = motor3Value + data.yaw;
-        motor4Value = motor4Value - data.yaw;
+        int yaw = map(data.yaw, 127, 0, 0, calibration);
+        motor1Value = motor1Value + yaw;
+        motor2Value = motor2Value - yaw;
+        motor3Value = motor3Value + yaw;
+        motor4Value = motor4Value - yaw;
       }
     }
 
