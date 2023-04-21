@@ -13,7 +13,8 @@ struct Data_Package {
   byte yaw;
   byte pitch;
   byte roll;
-  boolean startAndStop;
+  boolean start;
+  boolean fast;
 };
 
 //Create a variable from the struct above
@@ -44,24 +45,54 @@ void setup() {
   // Make sure the vehicule is stopped before starting
   pinMode(2, INPUT);
   digitalWrite(2, HIGH);
-  data.startAndStop = 0;
+  data.start = 0;
+
+  // Make sure the vehicule is not in fast mode before starting
+  pinMode(4, INPUT);
+  digitalWrite(4, HIGH);
+  data.fast = 0;
 }
 
 
 ///////////////////////////////////
 void loop() {
-  //Check if we push the start and stop button
+  //Check if we push the start button
   if (!digitalRead(2)) {
-    data.startAndStop = !data.startAndStop;
+    data.start = !data.start;
     delay(200);
   }
 
+  //Check if we push the fast button (and bip accordingly)
+  if (!digitalRead(4)) {
+    data.fast = !data.fast;
+    if (data.fast && data.start) {
+      tone(3, 3000);
+      delay(50);
+      noTone(3);
+      delay(50);
+      tone(3, 4000);
+      delay(50);
+      noTone(3);
+      delay(50);
+    } else if (!data.fast) {
+      tone(3, 3000);
+      delay(50);
+      noTone(3);
+      delay(50);
+      tone(3, 2000);
+      delay(50);
+      noTone(3);
+      delay(50);
+    }
+  }
+
   //Store null entries if we stopped the motors
-  if (!data.startAndStop) {
+  if (!data.start) {
     data.throttle = 0;
     data.yaw = 127;
     data.pitch = 127;
     data.roll = 127;
+    data.fast = false;
     Serial.println("Motors Stopped.");
 
 
@@ -84,9 +115,14 @@ void loop() {
   }
 
 
-  //Print tension data
+  //Print tension data and the speed mode
   Serial.print(tension);
   Serial.print("V");
+  if (data.fast) {
+    Serial.print(" Fast");
+  } else {
+    Serial.print(" Slow");
+  }
 
 
   //Send the data
@@ -104,7 +140,7 @@ void loop() {
       Serial.print("     ");
 
 
-      // Bip every 5s if the battery is low
+      // Bip every 5s if the battery is low, and put the slow mode
     } else {
       Serial.print("  B  ");
       if (millis() - lastTensionBipTime > 5000) {
@@ -115,6 +151,7 @@ void loop() {
         noTone(3);
         lastTensionBipTime = millis();
       }
+      data.fast = false;
     }
 
 

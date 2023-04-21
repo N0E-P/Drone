@@ -14,7 +14,8 @@ struct Data_Package {
   byte yaw;
   byte pitch;
   byte roll;
-  boolean startAndStop;
+  boolean start;
+  boolean fast;
 };
 
 //Create a variable from the struct above
@@ -36,11 +37,11 @@ int motor2Value = 0;
 int motor3Value = 0;
 int motor4Value = 0;
 
-//Pitch, Yaw and Roll can each interfer on the Throttle by this value
-const int calibration = 50;
+//Pitch, Yaw and Roll are more sensible if this value go up
+int calibration = 0;
 
-// Power to remove from drone if it lost signal
-int decreasePower = 1;
+// Throttle is more sensible if value goes up (max = 255)
+int maxThrottle = 0;
 
 // vehicule tension value
 float tension = 0;
@@ -65,8 +66,7 @@ void setup() {
   motor2.attach(4);
   motor3.attach(3);
   motor4.attach(2);
-
-  delay(3000);
+  delay(1000);
 }
 
 
@@ -76,7 +76,11 @@ void loop() {
   tension = analogRead(A5) * 0.0244140625 + 0.5;
   Serial.print(tension);
   Serial.print("V");
-
+  if (data.fast) {
+    Serial.print(" Fast");
+  } else {
+    Serial.print(" Slow");
+  }
 
   // Send the drone tension to the controler
   radio.stopListening();
@@ -108,11 +112,8 @@ void loop() {
   }
 
 
-
-
-
   // Stop the motors
-  if (!data.startAndStop) {
+  if (!data.start) {
     motor1.writeMicroseconds(1100);
     motor2.writeMicroseconds(1100);
     motor3.writeMicroseconds(1100);
@@ -122,37 +123,41 @@ void loop() {
 
     // Motors are rotating
   } else {
-    // If radio signal lost
+    // set the values for fast and normal mode
+    if (data.fast) {
+      calibration = 50;
+      maxThrottle = 255;
+    } else {
+      calibration = 25;
+      maxThrottle = 200;
+    }
+    int throttle = map(data.throttle, 0, 255, 0, maxThrottle);
+
+
+    // If radio signal lost, decrease the drone altitude
     if (millis() - lastReceiveTime > 1000) {
-      motor1Value = data.throttle - decreasePower;
-      motor2Value = data.throttle - decreasePower;
-      motor3Value = data.throttle - decreasePower;
-      motor4Value = data.throttle - decreasePower;
-
-      // Increase the power to slowly decrease the drone altitude
-      decreasePower = decreasePower + 1;
-
+      motor1Value = 200;
+      motor2Value = 200;
+      motor3Value = 200;
+      motor4Value = 200;
 
       // If we get radio signal
     } else {
-      // Reset the decrease power to only 1 if the drone lost and then regain signal
-      decreasePower = 1;
-
       //Pitch front + Throttle
       if (data.pitch > 127) {
         int pitch = map(data.pitch, 128, 255, 0, calibration);
-        motor1Value = data.throttle - pitch;
-        motor2Value = data.throttle - pitch;
-        motor3Value = data.throttle + pitch;
-        motor4Value = data.throttle + pitch;
+        motor1Value = throttle - pitch;
+        motor2Value = throttle - pitch;
+        motor3Value = throttle + pitch;
+        motor4Value = throttle + pitch;
 
         //Pitch back + Throttle
       } else {
         int pitch = map(data.pitch, 127, 0, 0, calibration);
-        motor1Value = data.throttle + pitch;
-        motor2Value = data.throttle + pitch;
-        motor3Value = data.throttle - pitch;
-        motor4Value = data.throttle - pitch;
+        motor1Value = throttle + pitch;
+        motor2Value = throttle + pitch;
+        motor3Value = throttle - pitch;
+        motor4Value = throttle - pitch;
       }
 
       //Roll right
@@ -204,18 +209,18 @@ void loop() {
       motor4Value = 0;
     }
 
-    // Do not send over 255 values
-    if (motor1Value > 255) {
-      motor1Value = 255;
+    // Do not send values over the maximum throttle possible (max = 255)
+    if (motor1Value > maxThrottle) {
+      motor1Value = maxThrottle;
     }
-    if (motor2Value > 255) {
-      motor2Value = 255;
+    if (motor2Value > maxThrottle) {
+      motor2Value = maxThrottle;
     }
-    if (motor3Value > 255) {
-      motor3Value = 255;
+    if (motor3Value > maxThrottle) {
+      motor3Value = maxThrottle;
     }
-    if (motor4Value > 255) {
-      motor4Value = 255;
+    if (motor4Value > maxThrottle) {
+      motor4Value = maxThrottle;
     }
 
     // Send data to the motors
