@@ -38,10 +38,7 @@ int motor3Value = 0;
 int motor4Value = 0;
 
 //Pitch, Yaw and Roll are more sensible if this value go up
-int calibration = 0;
-
-// Throttle is more sensible if value goes up (max = 255)
-int maxThrottle = 0;
+const int calibration = 10;
 
 // vehicule tension value
 float tension = 0;
@@ -66,7 +63,7 @@ void setup() {
   motor2.attach(4);
   motor3.attach(3);
   motor4.attach(2);
-  delay(1000);
+  delay(2000);
 }
 
 
@@ -76,11 +73,6 @@ void loop() {
   tension = analogRead(A5) * 0.0244140625 + 0.5;
   Serial.print(tension);
   Serial.print("V");
-  if (data.fast) {
-    Serial.print(" Fast");
-  } else {
-    Serial.print(" Slow");
-  }
 
   // Send the drone tension to the controler
   radio.stopListening();
@@ -123,26 +115,19 @@ void loop() {
 
     // Motors are rotating
   } else {
-    // set the values for fast and normal mode
-    if (data.fast) {
-      calibration = 50;
-      maxThrottle = 255;
-    } else {
-      calibration = 25;
-      maxThrottle = 200;
-    }
-    int throttle = map(data.throttle, 0, 255, 0, maxThrottle);
 
 
     // If radio signal lost, decrease the drone altitude
     if (millis() - lastReceiveTime > 1000) {
-      motor1Value = 200;
-      motor2Value = 200;
-      motor3Value = 200;
-      motor4Value = 200;
+      motor1Value = 120;
+      motor2Value = 120;
+      motor3Value = 120;
+      motor4Value = 120;
 
       // If we get radio signal
     } else {
+      int throttle = map(data.throttle, 0, 255, 90, 255);
+
       //Pitch front + Throttle
       if (data.pitch > 127) {
         int pitch = map(data.pitch, 128, 255, 0, calibration);
@@ -210,17 +195,17 @@ void loop() {
     }
 
     // Do not send values over the maximum throttle possible (max = 255)
-    if (motor1Value > maxThrottle) {
-      motor1Value = maxThrottle;
+    if (motor1Value > 255) {
+      motor1Value = 255;
     }
-    if (motor2Value > maxThrottle) {
-      motor2Value = maxThrottle;
+    if (motor2Value > 255) {
+      motor2Value = 255;
     }
-    if (motor3Value > maxThrottle) {
-      motor3Value = maxThrottle;
+    if (motor3Value > 255) {
+      motor3Value = 255;
     }
-    if (motor4Value > maxThrottle) {
-      motor4Value = maxThrottle;
+    if (motor4Value > 255) {
+      motor4Value = 255;
     }
 
     // Send data to the motors
