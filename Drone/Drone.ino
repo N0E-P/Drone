@@ -40,6 +40,7 @@ int motor4Value = 0;
 
 //Pitch, Yaw and Roll are more sensible if this value go up
 const int calibration = 10;
+const int accelerometerCalibration = 30;
 
 // vehicule tension value
 float tension = 0;
@@ -174,8 +175,9 @@ void loop() {
     Serial.print(rollAngle);
     Serial.print("  pitch: ");
     Serial.print(pitchAngle);
-    Serial.print("   ");
+    Serial.print("     ");
 
+    int throttle = map(data.throttle, 0, 255, 90, 255);
 
     // If radio signal lost, decrease the drone altitude
     if (millis() - lastReceiveTime > 1000) {
@@ -184,10 +186,46 @@ void loop() {
       motor3Value = 120;
       motor4Value = 120;
 
-      // If we get radio signal
-    } else {
-      int throttle = map(data.throttle, 0, 255, 90, 255);
 
+      // Stabilized mode
+    } else if (!data.fast) {
+      // drone tilts frontwards
+      if (pitchAngle < 0) {
+        int pitch = map(pitchAngle, 0, -90, 0, accelerometerCalibration);
+        motor1Value = throttle + pitch;
+        motor2Value = throttle + pitch;
+        motor3Value = throttle - pitch;
+        motor4Value = throttle - pitch;
+
+        // drone tilts backwards
+      } else {
+        int pitch = map(pitchAngle, 0, 90, 0, accelerometerCalibration);
+        motor1Value = throttle - pitch;
+        motor2Value = throttle - pitch;
+        motor3Value = throttle + pitch;
+        motor4Value = throttle + pitch;
+      }
+
+      // drone tilts right
+      if (pitchAngle < 0) {
+        int roll = map(rollAngle, 0, -90, 0, accelerometerCalibration);
+        motor1Value = motor1Value + roll;
+        motor2Value = motor2Value - roll;
+        motor3Value = motor3Value - roll;
+        motor4Value = motor4Value + roll;
+
+        // drone tilts left
+      } else {
+        int roll = map(rollAngle, 0, 90, 0, accelerometerCalibration);
+        motor1Value = motor1Value - roll;
+        motor2Value = motor2Value + roll;
+        motor3Value = motor3Value + roll;
+        motor4Value = motor4Value - roll;
+      }
+
+
+      // Normal flight mode
+    } else {
       //Pitch front + Throttle
       if (data.pitch > 127) {
         int pitch = map(data.pitch, 128, 255, 0, calibration);
@@ -240,33 +278,12 @@ void loop() {
       }
     }
 
-    // Do not send negative values
-    if (motor1Value < 0) {
-      motor1Value = 0;
-    }
-    if (motor2Value < 0) {
-      motor2Value = 0;
-    }
-    if (motor3Value < 0) {
-      motor3Value = 0;
-    }
-    if (motor4Value < 0) {
-      motor4Value = 0;
-    }
 
-    // Do not send values over the maximum throttle possible (max = 255)
-    if (motor1Value > 255) {
-      motor1Value = 255;
-    }
-    if (motor2Value > 255) {
-      motor2Value = 255;
-    }
-    if (motor3Value > 255) {
-      motor3Value = 255;
-    }
-    if (motor4Value > 255) {
-      motor4Value = 255;
-    }
+    // Do not send negative values or values over the maximum throttle possible (max = 255)
+    motor1Value = constrain(motor1Value, 0, 255);
+    motor2Value = constrain(motor2Value, 0, 255);
+    motor3Value = constrain(motor3Value, 0, 255);
+    motor4Value = constrain(motor4Value, 0, 255);
 
     // Send data to the motors
     motor1.writeMicroseconds(map(motor1Value, 0, 255, 1100, 2100));
