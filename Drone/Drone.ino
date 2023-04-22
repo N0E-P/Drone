@@ -3,7 +3,7 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 #include <Servo.h>
-#include <Wire.h>  // Wire library - used for I2C communication
+#include <Wire.h>
 
 //radio
 RF24 radio(8, 9);  // CE, CSN
@@ -37,6 +37,9 @@ int motor1Value = 0;
 int motor2Value = 0;
 int motor3Value = 0;
 int motor4Value = 0;
+
+// values to send to the motors
+int pitch, yaw, roll, throttle = 0;
 
 //Pitch, Yaw and Roll are more sensible if this value go up
 const int calibration = 10;
@@ -171,81 +174,80 @@ void loop() {
     rollAngle = atan(Y_out / sqrt(pow(X_out, 2) + pow(Z_out, 2))) * 180 / PI;
     pitchAngle = atan(-1 * X_out / sqrt(pow(Y_out, 2) + pow(Z_out, 2))) * 180 / PI;
 
+    // Life Telephone
     Serial.print("roll: ");
     Serial.print(rollAngle);
     Serial.print("  pitch: ");
     Serial.print(pitchAngle);
     Serial.print("     ");
 
-    int throttle = map(data.throttle, 0, 255, 90, 255);
 
     // If radio signal lost, decrease the drone altitude
     if (millis() - lastReceiveTime > 1000) {
-      motor1Value = 120;
-      motor2Value = 120;
-      motor3Value = 120;
-      motor4Value = 120;
-
-
-      // Stabilized mode
-    } else if (!data.fast) {
-      // drone tilts frontwards
-      if (pitchAngle < 0) {
-        int pitch = map(pitchAngle, 0, -90, 0, accelerometerCalibration);
-        motor1Value = throttle + pitch;
-        motor2Value = throttle + pitch;
-        motor3Value = throttle - pitch;
-        motor4Value = throttle - pitch;
-
-        // drone tilts backwards
-      } else {
-        int pitch = map(pitchAngle, 0, 90, 0, accelerometerCalibration);
-        motor1Value = throttle - pitch;
-        motor2Value = throttle - pitch;
-        motor3Value = throttle + pitch;
-        motor4Value = throttle + pitch;
-      }
-
-      // drone tilts right
-      if (pitchAngle < 0) {
-        int roll = map(rollAngle, 0, -90, 0, accelerometerCalibration);
-        motor1Value = motor1Value + roll;
-        motor2Value = motor2Value - roll;
-        motor3Value = motor3Value - roll;
-        motor4Value = motor4Value + roll;
-
-        // drone tilts left
-      } else {
-        int roll = map(rollAngle, 0, 90, 0, accelerometerCalibration);
-        motor1Value = motor1Value - roll;
-        motor2Value = motor2Value + roll;
-        motor3Value = motor3Value + roll;
-        motor4Value = motor4Value - roll;
-      }
-
-
-      // Normal flight mode
+      throttle = 120;
     } else {
-      //Pitch front + Throttle
-      if (data.pitch > 127) {
-        int pitch = map(data.pitch, 128, 255, 0, calibration);
-        motor1Value = throttle - pitch;
-        motor2Value = throttle - pitch;
-        motor3Value = throttle + pitch;
-        motor4Value = throttle + pitch;
+      throttle = map(data.throttle, 0, 255, 90, 255);
+    }
 
-        //Pitch back + Throttle
+
+    // Stabilize
+    // drone tilts frontwards
+    if (pitchAngle < 0) {
+      pitch = map(pitchAngle, 0, -90, 0, accelerometerCalibration);
+      motor1Value = throttle + pitch;
+      motor2Value = throttle + pitch;
+      motor3Value = throttle - pitch;
+      motor4Value = throttle - pitch;
+
+      // drone tilts backwards
+    } else {
+      pitch = map(pitchAngle, 0, 90, 0, accelerometerCalibration);
+      motor1Value = throttle - pitch;
+      motor2Value = throttle - pitch;
+      motor3Value = throttle + pitch;
+      motor4Value = throttle + pitch;
+    }
+
+    // drone tilts right
+    if (pitchAngle < 0) {
+      roll = map(rollAngle, 0, -90, 0, accelerometerCalibration);
+      motor1Value = motor1Value + roll;
+      motor2Value = motor2Value - roll;
+      motor3Value = motor3Value - roll;
+      motor4Value = motor4Value + roll;
+
+      // drone tilts left
+    } else {
+      roll = map(rollAngle, 0, 90, 0, accelerometerCalibration);
+      motor1Value = motor1Value - roll;
+      motor2Value = motor2Value + roll;
+      motor3Value = motor3Value + roll;
+      motor4Value = motor4Value - roll;
+    }
+
+
+    // Use controller values if got connexion
+    if (millis() - lastReceiveTime < 1000) {
+      //Pitch front
+      if (data.pitch > 127) {
+        pitch = map(data.pitch, 128, 255, 0, calibration);
+        motor1Value = motor1Value - pitch;
+        motor2Value = motor2Value - pitch;
+        motor3Value = motor3Value + pitch;
+        motor4Value = motor4Value + pitch;
+
+        //Pitch back
       } else {
-        int pitch = map(data.pitch, 127, 0, 0, calibration);
-        motor1Value = throttle + pitch;
-        motor2Value = throttle + pitch;
-        motor3Value = throttle - pitch;
-        motor4Value = throttle - pitch;
+        pitch = map(data.pitch, 127, 0, 0, calibration);
+        motor1Value = motor1Value + pitch;
+        motor2Value = motor2Value + pitch;
+        motor3Value = motor3Value - pitch;
+        motor4Value = motor4Value - pitch;
       }
 
       //Roll right
       if (data.roll > 127) {
-        int roll = map(data.roll, 128, 255, 0, calibration);
+        roll = map(data.roll, 128, 255, 0, calibration);
         motor1Value = motor1Value - roll;
         motor2Value = motor2Value + roll;
         motor3Value = motor3Value + roll;
@@ -253,7 +255,7 @@ void loop() {
 
         //Roll left
       } else {
-        int roll = map(data.roll, 127, 0, 0, calibration);
+        roll = map(data.roll, 127, 0, 0, calibration);
         motor1Value = motor1Value + roll;
         motor2Value = motor2Value - roll;
         motor3Value = motor3Value - roll;
@@ -262,7 +264,7 @@ void loop() {
 
       //Yaw right
       if (data.yaw > 127) {
-        int yaw = map(data.yaw, 128, 255, 0, calibration);
+        yaw = map(data.yaw, 128, 255, 0, calibration);
         motor1Value = motor1Value - yaw;
         motor2Value = motor2Value + yaw;
         motor3Value = motor3Value - yaw;
@@ -270,7 +272,7 @@ void loop() {
 
         //Yaw left
       } else {
-        int yaw = map(data.yaw, 127, 0, 0, calibration);
+        yaw = map(data.yaw, 127, 0, 0, calibration);
         motor1Value = motor1Value + yaw;
         motor2Value = motor2Value - yaw;
         motor3Value = motor3Value + yaw;
