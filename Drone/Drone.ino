@@ -3,6 +3,7 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 #include <Servo.h>
+#include <Wire.h>  // Wire library - used for I2C communication
 
 //radio
 RF24 radio(8, 9);  // CE, CSN
@@ -43,6 +44,10 @@ const int calibration = 10;
 // vehicule tension value
 float tension = 0;
 
+// Accelerometer
+int ADXL345 = 0x53;         // The ADXL345 sensor I2C address
+float X_out, Y_out, Z_out;  // Outputs
+float rollAngle, pitchAngle = 0;
 
 ///////////////////////////////////
 void setup() {
@@ -58,6 +63,38 @@ void setup() {
   radio.setAutoAck(false);
   radio.setPALevel(RF24_PA_MIN);
 
+  //Accelerometer
+  Wire.begin();  // Initiate the Wire library
+  //Set ADXL345 in measuring mode
+  Wire.beginTransmission(ADXL345);  // Start communicating with the device
+  Wire.write(0x2D);                 // Access/ talk to POWER_CTL Register - 0x2D
+  // Enable measurement
+  Wire.write(8);  // (8dec -> 0000 1000 binary) Bit D3 High for measuring enable
+  Wire.endTransmission();
+  delay(10);
+
+  // Off-set Calibration
+  //X-axis
+  Wire.beginTransmission(ADXL345);
+  Wire.write(0x1E);  // X-axis offset register
+  Wire.write(-2);
+  Wire.endTransmission();
+  delay(10);
+
+  //Y-axis
+  Wire.beginTransmission(ADXL345);
+  Wire.write(0x1F);  // Y-axis offset register
+  Wire.write(-0);
+  Wire.endTransmission();
+  delay(10);
+
+  //Z-axis
+  Wire.beginTransmission(ADXL345);
+  Wire.write(0x20);  // Z-axis offset register
+  Wire.write(+1);
+  Wire.endTransmission();
+  delay(10);
+
   //Give each motor an outpout pin
   motor1.attach(5);
   motor2.attach(4);
@@ -70,7 +107,7 @@ void setup() {
 ///////////////////////////////////
 void loop() {
   // Mesure and send battery tension
-  tension = analogRead(A5) * 0.0244140625 + 0.5;
+  tension = analogRead(A6) * 0.0244140625 + 0.5;
   Serial.print(tension);
   Serial.print("V");
 
@@ -115,6 +152,29 @@ void loop() {
 
     // Motors are rotating
   } else {
+    // Read acceleromter data
+    Wire.beginTransmission(ADXL345);
+    Wire.write(0x32);  // Start with register 0x32 (ACCEL_XOUT_H)
+    Wire.endTransmission(false);
+    Wire.requestFrom(ADXL345, 6, true);  // Read 6 registers total, each axis value is stored in 2 registers
+
+    // Get the values
+    X_out = (Wire.read() | Wire.read() << 8);  // X-axis value
+    X_out = X_out / 256;                       //For a range of +-2g, we need to divide the raw values by 256, according to the datasheet
+    Y_out = (Wire.read() | Wire.read() << 8);  // Y-axis value
+    Y_out = Y_out / 256;
+    Z_out = (Wire.read() | Wire.read() << 8);  // Z-axis value
+    Z_out = Z_out / 256;
+
+    // Calculate Roll and Pitch (rotation around X-axis, rotation around Y-axis)
+    rollAngle = atan(Y_out / sqrt(pow(X_out, 2) + pow(Z_out, 2))) * 180 / PI;
+    pitchAngle = atan(-1 * X_out / sqrt(pow(Y_out, 2) + pow(Z_out, 2))) * 180 / PI;
+
+    Serial.print("roll: ");
+    Serial.print(rollAngle);
+    Serial.print("  pitch: ");
+    Serial.print(pitchAngle);
+    Serial.print("   ");
 
 
     // If radio signal lost, decrease the drone altitude
