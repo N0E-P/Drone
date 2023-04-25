@@ -30,20 +30,16 @@ Servo motor4;
 
 //Time units
 unsigned long lastReceiveTime = 0;
-unsigned long lastBipTime = 0;
 
 //Declare the motor values variables
-int motor1Value = 0;
-int motor2Value = 0;
-int motor3Value = 0;
-int motor4Value = 0;
+int motor1Value, motor2Value,motor3Value,motor4Value = 0;
 
 // values to send to the motors
 int pitch, yaw, roll, throttle = 0;
 
 //Pitch, Yaw and Roll are more sensible if this value go up
-const int calibration = 10;
-const int accelerometerCalibration = 30;
+const int calibration = 15;
+const int accelerometerCalibration = 18;
 
 // vehicule tension value
 float tension = 0;
@@ -56,9 +52,6 @@ float rollAngle, pitchAngle = 0;
 ///////////////////////////////////
 void setup() {
   Serial.begin(9600);
-
-  // Buzzer
-  pinMode(7, OUTPUT);
 
   //radio
   radio.begin();
@@ -126,22 +119,11 @@ void loop() {
   if (radio.available()) {
     radio.read(&data, sizeof(Data_Package));
     lastReceiveTime = millis();
-    lastBipTime = millis();
     Serial.print("     ");
 
-    // Bip every 5 seconds if we lost signal
+    // No signal
   } else {
     Serial.print("  X  ");
-    if (millis() - lastBipTime > 5000) {
-      tone(7, 2000);
-      delay(75);
-      tone(7, 3000);
-      delay(75);
-      tone(7, 4000);
-      delay(75);
-      noTone(7);
-      lastBipTime = millis();
-    }
   }
 
 
@@ -313,5 +295,5 @@ void loop() {
   }
 
 
-  delay(50);
+  delay(10);
 }
