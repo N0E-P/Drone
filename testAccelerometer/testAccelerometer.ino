@@ -1,40 +1,33 @@
-// Accelerometer
-#include <Wire.h>  // Wire library - used for I2C communication
-int ADXL345 = 0x53; // The ADXL345 sensor I2C address
-float X_out, Y_out, Z_out;  // Outputs
-float roll,pitch=0;
+// Accelerometer variables
+#include <Wire.h>
+int ADXL345 = 0x53;
+float X_out, Y_out, Z_out;
+float rollAngle, pitchAngle = 0;
 
 void setup() {
-  Serial.begin(9600); // Initiate serial communication for printing the results on the Serial monitor
+  Serial.begin(9600);
 
-  //Accelerometer
-  Wire.begin(); // Initiate the Wire library
-  //Set ADXL345 in measuring mode
-  Wire.beginTransmission(ADXL345); // Start communicating with the device 
-  Wire.write(0x2D); // Access/ talk to POWER_CTL Register - 0x2D
-  // Enable measurement
-  Wire.write(8); // (8dec -> 0000 1000 binary) Bit D3 High for measuring enable 
+  //Accelerometer initialisation
+  Wire.begin();
+  Wire.beginTransmission(ADXL345);
+  Wire.write(0x2D);
+  Wire.write(8);
   Wire.endTransmission();
   delay(10);
 
-  // Off-set Calibration
-  //X-axis
+  // X, Y & Z axis Calibration
   Wire.beginTransmission(ADXL345);
-  Wire.write(0x1E);  // X-axis offset register
+  Wire.write(0x1E);
   Wire.write(-2);
   Wire.endTransmission();
   delay(10);
-
-  //Y-axis
   Wire.beginTransmission(ADXL345);
-  Wire.write(0x1F); // Y-axis offset register
+  Wire.write(0x1F);
   Wire.write(-0);
   Wire.endTransmission();
   delay(10);
-
-  //Z-axis
   Wire.beginTransmission(ADXL345);
-  Wire.write(0x20); // Z-axis offset register
+  Wire.write(0x20);
   Wire.write(+1);
   Wire.endTransmission();
   delay(10);
@@ -43,31 +36,32 @@ void setup() {
 void loop() {
   // Read acceleromter data
   Wire.beginTransmission(ADXL345);
-  Wire.write(0x32); // Start with register 0x32 (ACCEL_XOUT_H)
+  Wire.write(0x32);
   Wire.endTransmission(false);
-  Wire.requestFrom(ADXL345, 6, true); // Read 6 registers total, each axis value is stored in 2 registers
+  Wire.requestFrom(ADXL345, 6, true);
 
-  // Get the values
-  X_out = ( Wire.read()| Wire.read() << 8); // X-axis value
-  X_out = X_out/256; //For a range of +-2g, we need to divide the raw values by 256, according to the datasheet
-  Y_out = ( Wire.read()| Wire.read() << 8); // Y-axis value
-  Y_out = Y_out/256;
-  Z_out = ( Wire.read()| Wire.read() << 8); // Z-axis value
-  Z_out = Z_out/256;
+  // Get the X, Y & Z values
+  X_out = (Wire.read() | Wire.read() << 8);
+  X_out = X_out / 256;
+  Y_out = (Wire.read() | Wire.read() << 8);
+  Y_out = Y_out / 256;
+  Z_out = (Wire.read() | Wire.read() << 8);
+  Z_out = Z_out / 256;
 
   // Calculate Roll and Pitch (rotation around X-axis, rotation around Y-axis)
-  roll = atan(Y_out / sqrt(pow(X_out, 2) + pow(Z_out, 2))) * 180 / PI;
-  pitch = atan(-1 * X_out / sqrt(pow(Y_out, 2) + pow(Z_out, 2))) * 180 / PI;
+  rollAngle = atan(Y_out / sqrt(pow(X_out, 2) + pow(Z_out, 2))) * 180 / PI;
+  pitchAngle = atan(-1 * X_out / sqrt(pow(Y_out, 2) + pow(Z_out, 2))) * 180 / PI;
 
-
-  Serial.print("X= ");
-  Serial.print(X_out);
-  Serial.print("   Y= ");
-  Serial.print(Y_out);
-  Serial.print("   Z= ");
-  Serial.print(Z_out);
-  Serial.print("   Roll= ");
-  Serial.print(roll);
-  Serial.print("   Pitch= ");
-  Serial.println(pitch);
+  // Prints
+  // Serial.print("X= ");
+  // Serial.print(X_out);
+  // Serial.print("   Y= ");
+  // Serial.print(Y_out);
+  // Serial.print("   Zaxis: ");
+  // Serial.print(Z_out);
+  // Serial.print("   roll: ");
+  Serial.print(rollAngle);
+  // Serial.print("   pitch: ");
+  Serial.print(" ");
+  Serial.println(pitchAngle);
 }
